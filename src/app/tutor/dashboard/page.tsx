@@ -1,71 +1,84 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { useUserRole } from "@/hooks/useUserRole";
+import Link from "next/link";
+
+interface Course {
+  id: string;
+  title: string;
+  description: string;
+  status: string;
+  created_at: string;
+}
 
 export default function TutorDashboard() {
   const router = useRouter();
   const { user, role, loading } = useUserRole();
 
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [loadingCourses, setLoadingCourses] = useState(true);
+
   useEffect(() => {
-    if (!loading && (!user || role !== 'tutor')) {
-      router.push('/student/dashboard');
+    if (!loading && (!user || role !== "tutor")) {
+      router.push("/student/dashboard");
     }
   }, [user, role, loading, router]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (!user || role !== "tutor") return;
+
+    const loadCourses = async () => {
+      const { data, error } = await supabase
+        .from("courses")
+        .select("*")
+        .eq("tutor_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (!error && data) setCourses(data);
+
+      setLoadingCourses(false);
+    };
+
+    loadCourses();
+  }, [user, role]);
+
+  if (loading || loadingCourses) return <div className="p-8">Loading...</div>;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center">
-              <h1 className="text-xl font-bold bg-linear-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                Tutor Dashboard
-              </h1>
-            </div>
-            <div className="flex items-center">
-              <span className="text-sm text-gray-600 mr-4">
-                Welcome, {user?.user_metadata?.full_name || 'Tutor'}!
-              </span>
-              <button
-                onClick={() => supabase.auth.signOut()}
-                className="px-4 py-2 text-sm text-red-600 hover:text-red-700"
-              >
-                Sign Out
-              </button>
-            </div>
-          </div>
-        </div>
-      </nav>
+    <div className="min-h-screen p-6 max-w-5xl mx-auto">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">My Courses</h1>
 
-      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="bg-white shadow rounded-lg p-6">
-          <h2 className="text-2xl font-bold mb-4">Tutor Portal</h2>
-          <p className="text-gray-600">
-            Manage your courses, track student progress, and create learning materials.
-          </p>
-          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="border rounded-lg p-4">
-              <h3 className="font-semibold mb-2">My Courses</h3>
-              <p className="text-sm text-gray-600">Manage and update your courses</p>
-            </div>
-            <div className="border rounded-lg p-4">
-              <h3 className="font-semibold mb-2">Student Progress</h3>
-              <p className="text-sm text-gray-600">Track your students&apos; learning</p>
-            </div>
-          </div>
-        </div>
+        <Link
+          href="/tutor/courses/new"
+          className="bg-blue-600 text-white px-4 py-2 rounded"
+        >
+          + Create Course
+        </Link>
       </div>
+
+      {courses.length === 0 ? (
+        <p>No courses yet.</p>
+      ) : (
+        <div className="space-y-4">
+          {courses.map((course) => (
+            <Link
+              key={course.id}
+              href={`/tutor/courses/${course.id}/edit`}
+              className="block border p-4 rounded hover:bg-gray-50 transition"
+            >
+              <h2 className="font-semibold text-lg">{course.title}</h2>
+              <p className="text-sm text-gray-500">
+                {course.description || "No description"}
+              </p>
+              <span className="text-xs text-gray-400">{course.status}</span>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
