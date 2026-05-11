@@ -101,8 +101,8 @@ export default function TipTapEditor({
       attributes: {
         className: `focus:outline-none p-4 ${
           isTitle 
-            ? "text-3xl font-bold min-h-[80px]" 
-            : "prose prose-sm sm:prose lg:prose-lg xl:prose-2xl min-h-[300px]"
+            ? "text-3xl font-bold title-editor" 
+            : "prose prose-sm sm:prose lg:prose-lg xl:prose-2xl content-editor"
         }`,
         placeholder: placeholder,
       },
@@ -480,10 +480,26 @@ export default function TipTapEditor({
       <EditorContent editor={editor} />
 
       {/* Custom CSS */}
-      <style jsx global>{`
+      <style>{`
+        .title-editor.ProseMirror {
+          min-height: 200px !important;
+          max-height: 200px !important;
+          overflow-y: auto !important;
+        }
+        
+        .title-editor.ProseMirror p {
+          margin: 0 !important;
+          line-height: 1.3 !important;
+        }
+        
+        .content-editor.ProseMirror {
+          min-height: 300px !important;
+        }
+        
         .ProseMirror {
-          min-height: ${isTitle ? '80px' : '300px'};
           outline: none;
+          width: 100%;
+          box-sizing: border-box;
         }
         
         .ProseMirror:focus {
@@ -493,6 +509,9 @@ export default function TipTapEditor({
         .ProseMirror p.is-editor-empty:first-child::before {
           content: attr(placeholder);
           color: #9ca3af;
+          float: left;
+          height: 0;
+          pointer-events: none;
         }
         
         ${!isTitle ? `
