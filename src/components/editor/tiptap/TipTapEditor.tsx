@@ -8,6 +8,7 @@ import Typography from "@tiptap/extension-typography";
 import Underline from "@tiptap/extension-underline";
 import Link from "@tiptap/extension-link";
 import Image from "@tiptap/extension-image";
+import Placeholder from "@tiptap/extension-placeholder";
 import { TextStyle } from "@tiptap/extension-text-style";
 import { Color } from "@tiptap/extension-color";
 import FontFamily from "@tiptap/extension-font-family";
@@ -94,6 +95,10 @@ export default function TipTapEditor({
       FontFamily.configure({
         types: ["textStyle"],
       }),
+      Placeholder.configure({
+        placeholder: placeholder,
+        emptyEditorClass: "is-editor-empty",
+      }),
     ],
     content: content || "",
     immediatelyRender: false,
@@ -104,7 +109,6 @@ export default function TipTapEditor({
             ? "text-3xl font-bold title-editor" 
             : "prose prose-sm sm:prose lg:prose-lg xl:prose-2xl content-editor"
         }`,
-        placeholder: placeholder,
       },
     },
     onUpdate: ({ editor }: { editor: Editor }) => {
@@ -576,6 +580,31 @@ export default function TipTapEditor({
           .ProseMirror ul, .ProseMirror ol {
             margin: 0.5rem 0;
             padding-left: 1.5rem;
+          }
+
+          /* Placeholder styling */
+          .ProseMirror.is-editor-empty:first-child::before {
+            content: attr(data-placeholder);
+            float: left;
+            color: #9ca3af;
+            pointer-events: none;
+            height: 0;
+            font-style: italic;
+          }
+
+          /* Title editor specific height */
+          .title-editor.ProseMirror {
+            min-height: 80px !important;
+            max-height: 120px !important;
+            overflow-y: auto !important;
+            font-size: 1.875rem !important;
+            font-weight: bold !important;
+          }
+
+          /* Content editor specific height */
+          .content-editor.ProseMirror {
+            min-height: 400px !important;
+            overflow-y: auto !important;
           }
         ` : ''}
       `}</style>
