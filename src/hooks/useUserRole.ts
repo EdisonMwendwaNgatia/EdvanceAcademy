@@ -1,92 +1,86 @@
-import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
-import { User } from '@supabase/supabase-js';
+/* eslint-disable react-hooks/exhaustive-deps */
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
+import type { User } from "@supabase/supabase-js";
+
+type Role = "student" | "tutor" | "admin";
 
 export function useUserRole() {
   const [user, setUser] = useState<User | null>(null);
-  const [role, setRole] = useState<string | null>(null);
+  const [role, setRole] = useState<Role | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const resetState = () => {
+    setUser(null);
+    setRole(null);
+    setLoading(false);
+  };
+
+  const fetchProfile = async (userId: string) => {
+    const { data, error } = await supabase
+      .from("user_profiles")
+      .select("role, is_banned")
+      .eq("id", userId)
+      .single();
+
+    if (error || !data) {
+      console.error("Profile fetch error:", error);
+      setRole("student");
+      return;
+    }
+
+    // 🚨 BLOCK BANNED USERS
+    if (data.is_banned) {
+      await supabase.auth.signOut();
+      resetState();
+      return;
+    }
+
+    setRole((data.role as Role) || "student");
+  };
+
   useEffect(() => {
-    let isMounted = true;
+    let alive = true;
 
-    const getUserRole = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        if (!isMounted) return;
+    const init = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!alive) return;
 
-        if (user) {
-          setUser(user);
-          
-          // Fetch user role from profiles table
-          const { data: profile, error } = await supabase
-            .from('user_profiles')
-            .select('role')
-            .eq('id', user.id)
-            .single();
-          
-          if (!isMounted) return;
+      const sessionUser = data.session?.user ?? null;
 
-          if (error) {
-            console.error('Error fetching user role:', error);
-            setRole('student');
-          } else {
-            setRole(profile?.role || 'student');
-          }
-        } else {
-          setUser(null);
-          setRole(null);
-        }
-      } catch (err) {
-        console.error('Error in getUserRole:', err);
-        if (isMounted) {
-          setRole(null);
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+      setUser(sessionUser);
+
+      if (sessionUser) {
+        await fetchProfile(sessionUser.id);
+      } else {
+        resetState();
       }
+
+      setLoading(false);
     };
 
-    getUserRole();
+    init();
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!isMounted) return;
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!alive) return;
 
-      if (session?.user) {
-        setUser(session.user);
-        
-        try {
-          const { data: profile, error } = await supabase
-            .from('user_profiles')
-            .select('role')
-            .eq('id', session.user.id)
-            .single();
-          
-          if (!isMounted) return;
+      const sessionUser = session?.user ?? null;
 
-          if (error) {
-            console.error('Error fetching user role on auth change:', error);
-            setRole('student');
-          } else {
-            setRole(profile?.role || 'student');
-          }
-        } catch (err) {
-          console.error('Error in onAuthStateChange:', err);
-          setRole('student');
-        }
+      setUser(sessionUser);
+
+      if (sessionUser) {
+        await fetchProfile(sessionUser.id);
       } else {
-        setUser(null);
-        setRole(null);
+        resetState();
       }
+
       setLoading(false);
     });
 
     return () => {
-      isMounted = false;
+      alive = false;
       subscription.unsubscribe();
     };
   }, []);
